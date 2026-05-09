@@ -1,4 +1,4 @@
-name: Telegram to GitHub Release
+name: Telegram to GitHub Release (Zipped)
 
 on:
   workflow_dispatch:
@@ -7,12 +7,12 @@ on:
         description: 'لینک دانلودی که از ربات تلگرام گرفتی را اینجا وارد کن'
         required: true
       file_name:
-        description: 'نام فایل همراه با فرمت (مثلاً video.mp4)'
+        description: 'نام فایل اصلی همراه با فرمت (مثلاً video.mp4)'
         required: true
         default: 'video.mp4'
 
 jobs:
-  download-and-upload:
+  download-zip-upload:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -25,14 +25,22 @@ jobs:
         run: |
           wget -O "${{ github.event.inputs.file_name }}" "${{ github.event.inputs.file_url }}"
 
+      - name: Zip the File
+        run: |
+          # تبدیل فایل دانلود شده به فرمت زیپ
+          ZIP_NAME="${{ github.event.inputs.file_name }}.zip"
+          zip "$ZIP_NAME" "${{ github.event.inputs.file_name }}"
+          # ذخیره نام فایل زیپ برای مرحله بعد
+          echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_ENV
+
       - name: Create Release and Upload Asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # ساخت یک تگ رندوم برای ریلیز
+          # ساخت تگ رندوم
           TAG_NAME="v1.0.${{ github.run_number }}"
           
-          # آپلود فایل در بخش ریلیز گیت‌هاب
-          gh release create "$TAG_NAME" "${{ github.event.inputs.file_name }}" \
-            --title "Download: ${{ github.event.inputs.file_name }}" \
-            --notes "این فایل با موفقیت توسط گیت‌هاب اکشنز منتقل شد."
+          # آپلود فایل زیپ شده در بخش ریلیز
+          gh release create "$TAG_NAME" "${{ env.ZIP_FILE }}" \
+            --title "Download: ${{ env.ZIP_FILE }}" \
+            --notes "این فایل با موفقیت دانلود، زیپ و در گیت‌هاب منتقل شد."
