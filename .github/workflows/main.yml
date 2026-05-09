@@ -1,0 +1,38 @@
+name: Telegram to GitHub Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_url:
+        description: 'لینک دانلودی که از ربات تلگرام گرفتی را اینجا وارد کن'
+        required: true
+      file_name:
+        description: 'نام فایل همراه با فرمت (مثلاً video.mp4)'
+        required: true
+        default: 'video.mp4'
+
+jobs:
+  download-and-upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Download File from Link
+        run: |
+          wget -O "${{ github.event.inputs.file_name }}" "${{ github.event.inputs.file_url }}"
+
+      - name: Create Release and Upload Asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # ساخت یک تگ رندوم برای ریلیز
+          TAG_NAME="v1.0.${{ github.run_number }}"
+          
+          # آپلود فایل در بخش ریلیز گیت‌هاب
+          gh release create "$TAG_NAME" "${{ github.event.inputs.file_name }}" \
+            --title "Download: ${{ github.event.inputs.file_name }}" \
+            --notes "این فایل با موفقیت توسط گیت‌هاب اکشنز منتقل شد."
