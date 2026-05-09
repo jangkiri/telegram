@@ -1,18 +1,18 @@
-name: Telegram to GitHub Release (Zipped)
+name: Telegram to GitHub Repo (Split & Push)
 
 on:
   workflow_dispatch:
     inputs:
       file_url:
-        description: 'لینک دانلودی که از ربات تلگرام گرفتی را اینجا وارد کن'
+        description: 'لینک دانلود تلگرام'
         required: true
       file_name:
-        description: 'نام فایل اصلی همراه با فرمت (مثلاً video.mp4)'
+        description: 'نام فایل (مثلاً video.mp4)'
         required: true
         default: 'video.mp4'
 
 jobs:
-  download-zip-upload:
+  download-split-push:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -21,26 +21,28 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Download File from Link
+      - name: Setup Git
         run: |
-          wget -O "${{ github.event.inputs.file_name }}" "${{ github.event.inputs.file_url }}"
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Zip the File
-        run: |
-          # تبدیل فایل دانلود شده به فرمت زیپ
-          ZIP_NAME="${{ github.event.inputs.file_name }}.zip"
-          zip "$ZIP_NAME" "${{ github.event.inputs.file_name }}"
-          # ذخیره نام فایل زیپ برای مرحله بعد
-          echo "ZIP_FILE=$ZIP_NAME" >> $GITHUB_ENV
+      - name: Create Download Directory
+        run: mkdir -p downloads
 
-      - name: Create Release and Upload Asset
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download File
         run: |
-          # ساخت تگ رندوم
-          TAG_NAME="v1.0.${{ github.run_number }}"
-          
-          # آپلود فایل زیپ شده در بخش ریلیز
-          gh release create "$TAG_NAME" "${{ env.ZIP_FILE }}" \
-            --title "Download: ${{ env.ZIP_FILE }}" \
-            --notes "این فایل با موفقیت دانلود، زیپ و در گیت‌هاب منتقل شد."
+          wget -O "downloads/${{ github.event.inputs.file_name }}" "${{ github.event.inputs.file_url }}"
+
+      - name: Split File into 90MB Parts
+        run: |
+          cd downloads
+          # فایل را به قطعات ۹۰ مگابایتی تقسیم کن
+          split -b 90M "${{ github.event.inputs.file_name }}" "${{ github.event.inputs.file_name }}.part_"
+          # فایل اصلی را پاک کن تا حجم مخزن بیهوده پر نشود
+          rm "${{ github.event.inputs.file_name }}"
+
+      - name: Commit and Push Parts
+        run: |
+          git add downloads/*
+          git commit -m "Add downloaded and split file: ${{ github.event.inputs.file_name }}"
+          git push
