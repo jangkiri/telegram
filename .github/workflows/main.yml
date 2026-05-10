@@ -26,23 +26,32 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Create Download Directory
-        run: mkdir -p downloads
+      - name: Create Unique Download Directory
+        run: |
+          # ساخت یک پوشه جدید با نامی که شامل شماره اجرای فعلی است
+          mkdir -p "downloads_${{ github.run_number }}"
 
       - name: Download File
         run: |
-          wget -O "downloads/${{ github.event.inputs.file_name }}" "${{ github.event.inputs.file_url }}"
+          # دانلود فایل در پوشه جدید
+          wget -O "downloads_${{ github.run_number }}/${{ github.event.inputs.file_name }}" "${{ github.event.inputs.file_url }}"
 
       - name: Split File into 90MB Parts
         run: |
-          cd downloads
+          # ورود به پوشه اختصاصی همین اجرا
+          cd "downloads_${{ github.run_number }}"
+          
           # فایل را به قطعات ۹۰ مگابایتی تقسیم کن
           split -b 90M "${{ github.event.inputs.file_name }}" "${{ github.event.inputs.file_name }}.part_"
+          
           # فایل اصلی را پاک کن تا حجم مخزن بیهوده پر نشود
           rm "${{ github.event.inputs.file_name }}"
 
       - name: Commit and Push Parts
         run: |
-          git add downloads/*
-          git commit -m "Add downloaded and split file: ${{ github.event.inputs.file_name }}"
+          # اضافه کردن فقط محتویات پوشه جدید به گیت
+          git add "downloads_${{ github.run_number }}/*"
+          
+          # کامیت کردن و پوش به مخزن
+          git commit -m "Add split file: ${{ github.event.inputs.file_name }} (Run #${{ github.run_number }})"
           git push
